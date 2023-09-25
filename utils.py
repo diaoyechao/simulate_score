@@ -83,7 +83,7 @@ def get_chapter_start_end_position(pdf):
         page_content = page.extract_text()
         page_content = "".join(
             ["".join(item.split()) for item in page_content.split("\n") if not re.search("非涉密|项目编号", item)])
-        start_match = re.search(start_pattern, page_content[:50])
+        start_match = re.search(start_pattern, page_content[:60])
         if not end_pattern and start_match:
             start = page.page_number
             chinese_characters_pattern = r"\第(.+?)\章"
@@ -96,7 +96,7 @@ def get_chapter_start_end_position(pdf):
                 chinese_characters_end_num = num_chinese_characters_map[end_num]
                 end_pattern = f"第{chinese_characters_end_num}章"
         if end_pattern:
-            if re.search(end_pattern, "".join(page_content[:50].split())):
+            if not page.extract_tables() and re.search(end_pattern, "".join(page_content[:60].split())):
                 end = page.page_number
                 break
     if start == 0:
