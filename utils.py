@@ -112,8 +112,10 @@ def get_chapter_start_end_position(pdf):
             continue
         page = pdf.pages[page_index]
         page_content = page.extract_text()
-        start_match = re.search(start_pattern, "".join(page_content[:100].split()))
-        if start_match:
+        page_content = "".join(
+            ["".join(item.split()) for item in page_content.split("\n") if not re.search("非涉密|项目编号", item)])
+        start_match = re.search(start_pattern, page_content[:50])
+        if not end_pattern and start_match:
             start = page.page_number
             chinese_characters_pattern = r"\第(.+?)\章"
             chinese_characters_start_num = re.search(chinese_characters_pattern, start_match.group()).group(1)
@@ -125,7 +127,7 @@ def get_chapter_start_end_position(pdf):
                 chinese_characters_end_num = num_chinese_characters_map[end_num]
                 end_pattern = f"第{chinese_characters_end_num}章"
         if end_pattern:
-            if re.search(end_pattern, "".join(page_content[:200].split())):
+            if re.search(end_pattern, "".join(page_content[:50].split())):
                 end = page.page_number
                 break
     if start == 0:
@@ -214,7 +216,8 @@ def get_rating_sub_items(start, end, pdf):
                 # 判断是否存在评分子项，如果存在，则添加到评分子项列表中。
                 if search_rating_item:
                     if not recognize_rule(table_row_content) or re.search("有效期", table_row_content):
-                        rating_sub_items.append("，".join(["".join(item.split()) for item in table_row if item and not item.isdigit()]))
+                        rating_sub_items.append(
+                            "，".join(["".join(item.split()) for item in table_row if item and not item.isdigit()]))
                     else:
                         rating_sub_items.append(table_row_content)
                 if index == len(table) - 1:
