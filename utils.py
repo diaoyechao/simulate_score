@@ -44,10 +44,13 @@ def recognize_rule(sub_item):
     :param sub_item: 评分子项
     :return: 如果有对应规则，则返回评分子项对应的规则，否则返回None。
     """
+    sub_items = re.split("[，。；]", sub_item)
+    a = [item for item in sub_items if re.match("(?=.*得\\d+分)(?!.*最多得\\d+分)(?!.*最多可得\\d+分)", item)]
+    b = [item for item in sub_items if re.search("最多得\\d+分|最多可得\\d+分", item)]
     special_pattern = "满足|合理|可行|可靠|酌情赋分|最多得|优|良|得当"
-    if len(re.findall("获得", sub_item)) >= 2 or (
-            len(re.findall("得\\d+分", sub_item)) >= 2 and not re.search(special_pattern, sub_item)) \
-            or (len(re.findall("得\\d+分", sub_item)) >= 2 and len(re.findall("最多得\\d+分", sub_item))) >= 2:
+    if len(re.findall("获得", sub_item)) >= 2 \
+            or (len(a) >= 2 and not re.search(special_pattern, sub_item)) \
+            or (len(a) >= 2 and len(b) >= 1):
         return "rule3", "满足【】条件得X分，满足【】条件得Y分，满足【】条件得Z分，..."
     for rule, patterns in fixed_score_rule_patterns.items():
         for pattern in patterns:
@@ -201,6 +204,9 @@ def get_rating_sub_items(start, end, pdf):
     split_rating_sub_items = []
     for sub_item in rating_sub_items:
         count = 0
+        if re.search("等次", sub_item):
+            split_rating_sub_items.append(sub_item)
+            continue
         items = split_items(sub_item)
         if items:
             for item in items:
