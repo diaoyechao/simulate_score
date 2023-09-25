@@ -77,37 +77,6 @@ def get_chapter_start_end_position(pdf):
     for page_index in range(len(pdf.pages)):
         if page_index > 90:
             break
-        # if page_index < 5:
-        #     page = pdf.pages[page_index]
-        #     page_content = page.extract_text()
-        #     if re.search("目(.*)录", page_content):
-        #         contents = page_content.split("\n")
-        #         for index, content in enumerate(contents):
-        #             if "评标办法" in content:
-        #                 print(contents)
-        #                 print(content)
-        #                 start = int(re.findall("\\d+", content)[-1])
-        #                 end = int(re.findall("\\d+", contents[index + 1][5:])[-1])
-        #                 print("通过目录获取到。")
-        # if end - start < 2:
-        #     page = pdf.pages[page_index]
-        #     page_content = page.extract_text()
-        #     start_match = re.search(start_pattern, "".join(page_content[:100].split()))
-        #     if start_match:
-        #         start = page.page_number
-        #         chinese_characters_pattern = r"\第(.+?)\章"
-        #         chinese_characters_start_num = re.search(chinese_characters_pattern, start_match.group()).group(1)
-        #         if chinese_characters_start_num.isdigit():
-        #             end_pattern = f"第{int(chinese_characters_start_num) + 1}章"
-        #         else:
-        #             start_num = chinese_characters_num_map[chinese_characters_start_num]
-        #             end_num = start_num + 1
-        #             chinese_characters_end_num = num_chinese_characters_map[end_num]
-        #             end_pattern = f"第{chinese_characters_end_num}章"
-        #     if end_pattern:
-        #         if re.search(end_pattern, "".join(page_content[:200].split())):
-        #             end = page.page_number
-        #             break
         if page_index < 5:
             continue
         page = pdf.pages[page_index]
