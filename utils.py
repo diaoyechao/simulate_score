@@ -243,6 +243,22 @@ def get_rating_sub_items(start, end, pdf):
     return list(dict.fromkeys(filtered_split_rating_sub_items))
 
 
+enterprise_award_dict = json.load(open("config/enterprise_awards.json"))
+
+
+def get_result(text):
+    result = {}
+    for first_key, first_values in enterprise_award_dict.items():
+        first_result = []
+        for second_key, second_values in first_values.items():
+            for alias in second_values:
+                if re.search(alias, text):
+                    result[first_key] = first_result.append(second_key)
+                    break
+        result[first_key] = first_result
+    return result
+
+
 def is_integer_or_float(input_str):
     try:
         int_value = int(input_str)  # 尝试将字符串转换为整数
