@@ -246,7 +246,7 @@ def get_rating_sub_items(start, end, pdf):
 enterprise_award_dict = json.load(open("config/enterprise_awards.json"))
 
 
-def get_result(text):
+def get_enterprise_award(text):
     result = {}
     for first_key, first_values in enterprise_award_dict.items():
         first_result = []
@@ -281,8 +281,8 @@ def judge_evaluation_method_pdf(start, end, pdf):
     for j in range(start, end + 1):
         page = pdf.pages[j - 1]
         page_content = "".join(page.extract_text().split())
-        if re.search("综合评估法|综合评分法", page_content):
-            return re.search("综合评估法|综合评分法", page_content).group()
+        if re.search("综合评估法|综合评分法|综合评价法", page_content):
+            return re.search("综合评估法|综合评分法|综合评价法", page_content).group()
     return None
 
 
@@ -290,8 +290,8 @@ def judge_evaluation_method_word(doc):
     paragraphs = doc.paragraphs
     for paragraph in paragraphs:
         paragraph_text = "".join(paragraph.text.split())
-        if re.search("综合评估法|综合评分法", paragraph_text):
-            return re.search("综合评估法|综合评分法", paragraph_text).group()
+        if re.search("综合评估法|综合评分法|综合评价法", paragraph_text):
+            return re.search("综合评估法|综合评分法|综合评价法", paragraph_text).group()
     return None
 
 
