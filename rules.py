@@ -1,5 +1,5 @@
-from expression import get_expression
 from utils import *
+from expression import get_expression
 
 
 def rule1(sub_item):
