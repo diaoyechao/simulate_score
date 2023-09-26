@@ -1,3 +1,4 @@
+from expression import get_expression
 from utils import *
 
 
@@ -104,26 +105,37 @@ def rule3(sub_item):
                          "scoreY": None,
                          "maxScore": None,
                          "humanScore": None}
-    split_sub_items = re.split("[，。；]", sub_item)
-    pattern = "满分\\d+分"
-    score_rule = [f"满足【{re.sub(pattern, '', split_sub_item)}】" for split_sub_item in split_sub_items if
-                  re.search(r"得\d+分|得\d+(\.\d+)?分|的\d+|的\d+(\.\d+)?分", split_sub_item) and len(split_sub_item) > 10]
-    fixed_score_items["scoreRule"] = score_rule
 
-    score_items = [split_sub_item for split_sub_item in split_sub_items if
-                   re.search(r"得\d+分|得\d+(\.\d+)?分|的\d+|的\d+(\.\d+)?分", split_sub_item) and len(split_sub_item) > 10]
-    score_expressions = []
-    name = get_result(sub_item).get("名称", None)
-    for score_item in score_items:
-        X = re.search(r"得\d+分|得\d+(\.\d+)?分|的\d+|的\d+(\.\d+)?分", score_item).group()
-        score = re.search(r"\d+(\.\d+)?|\d+", X).group()
-        calculation_method = f"count*{score}"
-        if name:
-            expression = name[0] + [value[0] for key, value in get_result(score_item).items()
-                                    if value][0] + "-" + calculation_method
-            score_expressions.append(expression)
-        else:
-            expression = [value[0] for key, value in get_result(score_item).items() if value][0] + "-" + calculation_method
-            score_expressions.append(expression)
-    print(score_expressions)
+    pattern = r"得\d+分|得\d+(\.\d+)?分|的\d+|的\d+(\.\d+)?分|得分\d+分"
+
+    conditions = []
+    if re.search("；", sub_item):
+        split_items = re.split("；", sub_item)
+        conditions = [split_item for split_item in split_items if
+                      re.search(pattern, split_item) and not re.search("最多可得|最高得", split_item)]
+    else:
+        split_items = re.split("[，。]", sub_item)
+        for index, split_item in enumerate(split_items):
+            if not split_item:
+                continue
+            # 不满足pattern
+            if not re.search(pattern, split_item):
+                if conditions and not re.search(pattern, conditions[-1]):
+                    conditions[-1] += "，" + split_item
+                else:
+                    conditions.append(split_item)
+            # 满足pattern
+            elif index == 0:
+                conditions.append(split_item)
+            else:
+                if not re.search(pattern, conditions[-1]):
+                    conditions[-1] += "，" + split_item
+                else:
+                    conditions.append(split_item)
+        conditions = [condition for condition in conditions if
+                      re.search(pattern, condition) and not re.search("最多", condition)]
+
+    score_rule = [f"满足【{condition}】" for condition in conditions]
+    fixed_score_items["scoreRule"] = score_rule
+    score_expressions = get_expression(sub_item, conditions)
     return fixed_score_items
