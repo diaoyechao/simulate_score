@@ -75,7 +75,7 @@ def get_chapter_start_end_position(pdf):
     end = 0
     chinese_characters_num_map = {"二": 2, "三": 3, "四": 4}
     num_chinese_characters_map = {value: key for key, value in chinese_characters_num_map.items()}
-    start_pattern = "第.*章.*评标办法"
+    start_pattern = "第.*章.*评标办法|第.*章.*评标及定标办法"
     end_pattern = ""
     for page_index in range(len(pdf.pages)):
         if page_index > 90:
