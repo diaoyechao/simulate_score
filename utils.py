@@ -243,7 +243,7 @@ def get_rating_sub_items(start, end, pdf):
     return list(dict.fromkeys(filtered_split_rating_sub_items))
 
 
-enterprise_award_dict = json.load(open("config/enterprise_awards.json"))
+enterprise_award_dict = json.load(open("config/enterprise_awards.json", encoding="utf-8"))
 
 
 def get_enterprise_award(text):
