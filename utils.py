@@ -122,8 +122,8 @@ def get_rating_sub_items(start, end, pdf):
     rating_sub_items_patterns = get_rating_sub_items_patterns()
     rating_sub_items = []
     last_page_table_row = ""  # 被分割的上一页的表格行内容
-    last_page_table_row_bak = ""  # 被分割的上一页的表格行内容
-    label = False
+    last_page_table_sign = False
+    last_page_table_sign_index = None
     for j in range(start, end + 1):
         page = pdf.pages[j - 1]
         tables = page.extract_tables()
@@ -131,18 +131,32 @@ def get_rating_sub_items(start, end, pdf):
         # print(tables)
         # print("------")
         # 提取每一页每一个表格的评分子项内容
-        for table in tables:
+        for table_index, table in enumerate(tables):
             # table:每一页每一个表格 [[],[],...,[]]
             # print(table)
             # print("******")
             sign = False
-            if re.search("评分分|分值", str(table[0][-1])) and len(str(table[0][-1])) < 5:
+            if re.search("评分分|分值|满分", "".join(str(table[0][-1]).split())) and len(
+                    "".join(str(table[0][-1]).split())) < 5:
                 sign = True
-            if len([item for item in table[0] if re.search("评审项|条款号|评分因素|评审内容", str(item))]) > 1:
+                if table_index == len(tables) - 1:
+                    last_page_table_sign = True
+                    last_page_table_sign_index = j
+                else:
+                    last_page_table_sign = False
+            if len([item for item in table[0] if re.search("评审项|条款号|条款内容|编列内容|评分因素|评审内容", str(item))]) > 1:
                 table = table[1:]
-            for index, table_row in enumerate(table):
+            if last_page_table_sign and (
+                    (None in table[0]) or ('' in table[0])) and j == last_page_table_sign_index + 1:
+                new_table = []
+                for table_row in table:
+                    new_table.append([item for item in table_row if item and len(item) > 5])
+                table = new_table
+            for table_row_index, table_row in enumerate(table):
                 # table_row:每一个表格的每一行
                 # print(table_row)
+                if table_row_index == len(table) - 1:
+                    last_page_table_row = "".join(["".join(item.split()) for item in table_row if item])
                 # 处理表格中最后一列为评分分值的情况
                 if sign:
                     table_row = table_row[:-1]
@@ -153,30 +167,21 @@ def get_rating_sub_items(start, end, pdf):
                         rating_sub_items.extend(exist_rating_sub_item)
                     continue
                 # **********************
-                for content in table_row[:-1]:
-                    result = re.search(rating_sub_items_patterns, str(content))
-                    if result:
-                        table_row_content_bak = "".join(["".join(content.split()) for content in table_row])
-                        for row in table[index + 1:len(table)]:
-                            if None in row[:-1]:
-                                table_row_content_bak += "".join(
-                                    ["".join(content.split()) for content in row if content is not None])
-                        last_page_table_row_bak = table_row_content_bak
-                        label = True
-                if label is True:
-                    if (None in table_row[:-1]) or ('' in table_row[:-1]):
-                        last_page_table_row_bak += "".join([content for content in table_row if content is not None])
-                        rating_sub_items.append("".join(last_page_table_row_bak.split()))
+                if not re.search(rating_sub_items_patterns, "".join(table_row[-1].split())):
+                    if re.search("（\\d+分）", "".join(table_row[-2].split())):
+                        filtered_table_row = ["".join(item.split()) for item in table_row[-2:]]
+                        table_row_content = "，".join(filtered_table_row)
+                        rating_sub_items.append(table_row_content)
                 # **********************
                 # 同一表格在不同页上被分割开的内容整合
                 # todo 还需优化
-                if index == 0:
-                    if (None in table_row[:-1]) or ('' in table_row[:-1]):
+                if table_row_index == 0:
+                    if (None in table_row[:-1]) or ('' in table_row[:-1]) or last_page_table_sign:
                         last_page_table_row += "".join(table_row[-1].split())
                         # print(last_page_table_row)
                         search_rating_item = re.search(rating_sub_items_patterns, last_page_table_row)
                         # 判断是否存在评分子项，如果存在，则添加到评分子项列表中。
-                        if search_rating_item:
+                        if search_rating_item and not re.search("投标报价", last_page_table_row):
                             rating_sub_items.append(last_page_table_row)
                         last_page_table_row = ""
                         continue
@@ -187,13 +192,13 @@ def get_rating_sub_items(start, end, pdf):
                 # print("%%%%%%")
                 # 判断是否存在评分子项，如果存在，则添加到评分子项列表中。
                 if search_rating_item:
-                    if not recognize_rule(table_row_content) or re.search("有效期", table_row_content):
+                    if re.search("投标报价", table_row_content):
+                        continue
+                    elif not recognize_rule(table_row_content) or re.search("有效期", table_row_content):
                         rating_sub_items.append(
                             "，".join(["".join(item.split()) for item in table_row if item and not item.isdigit()]))
                     else:
                         rating_sub_items.append(table_row_content)
-                if index == len(table) - 1:
-                    last_page_table_row = "".join(table_row[-1].split())
     # print("")
     # for rating_sub_item in rating_sub_items:
     #     print(rating_sub_item)
