@@ -426,6 +426,48 @@ class BiddingDocumentParser:
             return items
         return False
 
+    def split_and_filter(self, rating_sub_items):
+        # 对小单元格继续进行拆分
+        split_rating_sub_items = []
+        for sub_item in rating_sub_items:
+            count = 0
+            if re.search("等次", sub_item):
+                split_rating_sub_items.append(sub_item)
+                continue
+            items = self.split_items(sub_item)
+            if items:
+                for item in items:
+                    if re.search(self.get_rating_sub_items_patterns(), item):
+                        count += 1
+                        if count > 1:
+                            break
+                if count > 1:
+                    for item in items:
+                        if re.search(self.get_rating_sub_items_patterns(), item):
+                            split_rating_sub_items.append(item)
+                else:
+                    split_rating_sub_items.append(sub_item)
+            else:
+                split_rating_sub_items.append(sub_item)
+        # 去重 去除多余信息：example：（注：...）
+        filtered_split_rating_sub_items = []
+        for index, item in enumerate(split_rating_sub_items):
+            unuseful_mes_start_index = item.find("备注：") if item.find("备注：") != -1 else item.find("注：")
+            if index == len(split_rating_sub_items) - 1:
+                if unuseful_mes_start_index != -1:
+                    filtered_split_rating_sub_items.append(item[:unuseful_mes_start_index])
+                else:
+                    filtered_split_rating_sub_items.append(item)
+                break
+            if item in split_rating_sub_items[index + 1]:
+                continue
+            else:
+                if unuseful_mes_start_index != -1:
+                    filtered_split_rating_sub_items.append(item[:unuseful_mes_start_index])
+                else:
+                    filtered_split_rating_sub_items.append(item)
+        return filtered_split_rating_sub_items
+
     def get_rating_sub_items(self, start, end, pdf):
         """
         提取出每一页的所有表格中的评分子项内容，添加到评分子项列表中
@@ -521,46 +563,7 @@ class BiddingDocumentParser:
         #     print("******")
         # exit()
 
-        # 对小单元格继续进行拆分
-        split_rating_sub_items = []
-        for sub_item in rating_sub_items:
-            count = 0
-            if re.search("等次", sub_item):
-                split_rating_sub_items.append(sub_item)
-                continue
-            items = self.split_items(sub_item)
-            if items:
-                for item in items:
-                    if re.search(rating_sub_items_patterns, item):
-                        count += 1
-                        if count > 1:
-                            break
-                if count > 1:
-                    for item in items:
-                        if re.search(rating_sub_items_patterns, item):
-                            split_rating_sub_items.append(item)
-                else:
-                    split_rating_sub_items.append(sub_item)
-            else:
-                split_rating_sub_items.append(sub_item)
-
-        # 去重 去除多余信息：example：（注：...）
-        filtered_split_rating_sub_items = []
-        for index, item in enumerate(split_rating_sub_items):
-            unuseful_mes_start_index = item.find("备注：") if item.find("备注：") != -1 else item.find("注：")
-            if index == len(split_rating_sub_items) - 1:
-                if unuseful_mes_start_index != -1:
-                    filtered_split_rating_sub_items.append(item[:unuseful_mes_start_index])
-                else:
-                    filtered_split_rating_sub_items.append(item)
-                break
-            if item in split_rating_sub_items[index + 1]:
-                continue
-            else:
-                if unuseful_mes_start_index != -1:
-                    filtered_split_rating_sub_items.append(item[:unuseful_mes_start_index])
-                else:
-                    filtered_split_rating_sub_items.append(item)
+        filtered_split_rating_sub_items = self.split_and_filter(rating_sub_items)
         return list(dict.fromkeys(filtered_split_rating_sub_items))
 
     def score_analysis(self, file_path):
@@ -575,100 +578,13 @@ class BiddingDocumentParser:
             },
             "timestamp": ""
         }
+        filtered_split_rating_sub_items = []
         if self.is_pdf(file_path) or os.path.splitext(file_path)[1] == ".pdf":
             with pdfplumber.open(file_path) as pdf:
                 start, end = self.get_chapter_start_end_position(pdf)
                 print(f"@1.评标办法章节开始位置{start}，结束位置{end}。")
                 print("------")
                 filtered_split_rating_sub_items = self.get_rating_sub_items(start, end, pdf)
-
-            print("")
-            print("@2.评分子项内容")
-            for filtered_split_rating_sub_item in filtered_split_rating_sub_items:
-                print(filtered_split_rating_sub_item)
-                print("******")
-
-            fixed_score_items = []
-            subject_score_items = []
-            # if os.path.exists("result.txt"):
-            #     os.remove("result.txt")
-            # w = open("./result.txt", "a", encoding="utf-8")
-            for sub_item in filtered_split_rating_sub_items:
-                # 可计算得分项
-                # 判断评分子项对应的规则
-                # w.write(sub_item + "\n")
-                # print(sub_item)
-                rule = self.recognize_rule(sub_item)
-                # w.write(str(rule) + "\n")
-                # w.write("\n")
-                # print(rule)
-                # print("&&&&&&")
-                if rule:
-                    if rule[0] == "rule1":
-                        rule1_fixed_score_items = rule1(sub_item)
-                        if rule1_fixed_score_items["scoreItem"]:
-                            fixed_score_items.append(rule1_fixed_score_items)
-                    if rule[0] == "rule2":
-                        rule2_fixed_score_items = rule2(sub_item)
-                        if rule2_fixed_score_items["scoreItem"]:
-                            fixed_score_items.append(rule2_fixed_score_items)
-                    elif rule[0] == "rule3":
-                        rule3_fixed_score_items = rule3(sub_item)
-                        if rule3_fixed_score_items["scoreItem"]:
-                            fixed_score_items.append(rule3_fixed_score_items)
-                else:
-                    subject_score_items.append(sub_item)
-
-            print("")
-            print("@3.可计算得分项内容及其对应规则")
-            fixedScoreResp = []
-            for fixed_score_item in fixed_score_items:
-                fixedScoreResp.append(fixed_score_item)
-                print(fixed_score_item)
-                print("******")
-            final["data"]["fixedScoreResp"] = fixedScoreResp
-
-            print("")
-            print("@4.主观得分项及其对应最大分值")
-            subjectiveScoreResp = []
-            for subject_score_item in subject_score_items:
-                subject_score_item_dict = {
-                    "scoreItem": subject_score_item,
-                    "maxScore": None,
-                    "scoreType": 2,
-                    "defaultScore": None
-                }
-                max_score_pattern = "最多得\\d+分|最高得(\\d+)分|满分\\d+分|最高不超过(\\d+)分|得\\d+分|得\\d+(\\.\\d+)?分" \
-                                    "|得\\d+(\\.\\d+)?～\\d+分|得\\d+(\\.\\d+)?～\\d+(\\.\\d+)?分|为\\d+分|得\\d+-\\d+分|加\\d+分"
-                max_score_iter = re.finditer(max_score_pattern, subject_score_item)
-                scores = [max_score.group() for item in max_score_iter for max_score in
-                          re.finditer("\\d+(\\.\\d+)?|\\d+", item.group())]
-
-                scores = [int(score) if isinstance(is_integer_or_float(score), int) else float(score) for score in
-                          scores]
-                if scores:
-                    subject_score_item_dict["maxScore"] = max(scores)
-                subjectiveScoreResp.append(subject_score_item_dict)
-            final["data"]["subjectiveScoreResp"] = subjectiveScoreResp
-
-            businessScoreResp = {
-                "businessScoreItem": None,
-                "controlPrice": None,
-                "upRuleRate": None,
-                "downRuleRate": None,
-                "basicRate": None,
-                "basicPrice": None,
-                "scoreType": 3
-            }
-
-            final["data"]["businessScoreResp"] = businessScoreResp
-
-            # 获取当前时间
-            current_time = datetime.datetime.now()
-            # 将当前时间转换为时间戳（以秒为单位）
-            timestamp = current_time.timestamp()
-            final["timestamp"] = timestamp
-            return final
 
         if self.is_word(file_path) or os.path.splitext(file_path)[1] in [".doc", ".docx"]:
             if self.is_doc_or_docx(file_path) == "doc":
@@ -677,13 +593,114 @@ class BiddingDocumentParser:
             else:
                 docx_path = file_path
             doc = docx.Document(docx_path)
-            return final
+            tables = doc.tables
+            rating_sub_items = []
+            for table in tables:
+                for row_index in range(len(table.rows)):
+                    # 获取行对象
+                    row = table.rows[row_index]
+                    # 获取行对象文字信息
+                    row_content = [cell.text for cell in row.cells]
+                    # print(row_content)
+                    for cell_content in row_content:
+                        result = re.search(self.get_rating_sub_items_patterns(), cell_content)
+                        if result:
+                            rating_sub_items.append("".join(cell_content.split()))
+            filtered_split_rating_sub_items = self.split_and_filter(rating_sub_items)
+
+        print("")
+        print("@2.评分子项内容")
+        for filtered_split_rating_sub_item in filtered_split_rating_sub_items:
+            print(filtered_split_rating_sub_item)
+            print("******")
+
+        fixed_score_items = []
+        subject_score_items = []
+        # if os.path.exists("result.txt"):
+        #     os.remove("result.txt")
+        # w = open("./result.txt", "a", encoding="utf-8")
+        for sub_item in filtered_split_rating_sub_items:
+            # 可计算得分项
+            # 判断评分子项对应的规则
+            # w.write(sub_item + "\n")
+            # print(sub_item)
+            rule = self.recognize_rule(sub_item)
+            # w.write(str(rule) + "\n")
+            # w.write("\n")
+            # print(rule)
+            # print("&&&&&&")
+            if rule:
+                if rule[0] == "rule1":
+                    rule1_fixed_score_items = rule1(sub_item)
+                    if rule1_fixed_score_items["scoreItem"]:
+                        fixed_score_items.append(rule1_fixed_score_items)
+                if rule[0] == "rule2":
+                    rule2_fixed_score_items = rule2(sub_item)
+                    if rule2_fixed_score_items["scoreItem"]:
+                        fixed_score_items.append(rule2_fixed_score_items)
+                elif rule[0] == "rule3":
+                    rule3_fixed_score_items = rule3(sub_item)
+                    if rule3_fixed_score_items["scoreItem"]:
+                        fixed_score_items.append(rule3_fixed_score_items)
+            else:
+                subject_score_items.append(sub_item)
+
+        print("")
+        print("@3.可计算得分项内容及其对应规则")
+        fixedScoreResp = []
+        for fixed_score_item in fixed_score_items:
+            fixedScoreResp.append(fixed_score_item)
+            print(fixed_score_item)
+            print("******")
+        final["data"]["fixedScoreResp"] = fixedScoreResp
+
+        print("")
+        print("@4.主观得分项及其对应最大分值")
+        subjectiveScoreResp = []
+        for subject_score_item in subject_score_items:
+            subject_score_item_dict = {
+                "scoreItem": subject_score_item,
+                "maxScore": None,
+                "scoreType": 2,
+                "defaultScore": None
+            }
+            max_score_pattern = "最多得\\d+分|最高得(\\d+)分|满分\\d+分|最高不超过(\\d+)分|得\\d+分|得\\d+(\\.\\d+)?分" \
+                                "|得\\d+(\\.\\d+)?～\\d+分|得\\d+(\\.\\d+)?～\\d+(\\.\\d+)?分|为\\d+分|得\\d+-\\d+分|加\\d+分"
+            max_score_iter = re.finditer(max_score_pattern, subject_score_item)
+            scores = [max_score.group() for item in max_score_iter for max_score in
+                      re.finditer("\\d+(\\.\\d+)?|\\d+", item.group())]
+
+            scores = [int(score) if isinstance(is_integer_or_float(score), int) else float(score) for score in
+                      scores]
+            if scores:
+                subject_score_item_dict["maxScore"] = max(scores)
+            subjectiveScoreResp.append(subject_score_item_dict)
+        final["data"]["subjectiveScoreResp"] = subjectiveScoreResp
+
+        businessScoreResp = {
+            "businessScoreItem": None,
+            "controlPrice": None,
+            "upRuleRate": None,
+            "downRuleRate": None,
+            "basicRate": None,
+            "basicPrice": None,
+            "scoreType": 3
+        }
+
+        final["data"]["businessScoreResp"] = businessScoreResp
+
+        # 获取当前时间
+        current_time = datetime.datetime.now()
+        # 将当前时间转换为时间戳（以秒为单位）
+        timestamp = current_time.timestamp()
+        final["timestamp"] = timestamp
+        return final
 
 
 if __name__ == '__main__':
-    file_path = "download_files/综合交通换乘中心全过程设计_1694688881460.pdf"
+    file_path = "download_files/8.20招标文件-稽山街道2021年9月-2023年9月年度限额以下工程设计项目_1695180848991.docx"
     biddingDocumentParser = BiddingDocumentParser()
     bidding_document_parse_result = biddingDocumentParser.bidding_document_parse(file_path)
     print(bidding_document_parse_result)
-    score_analysis_result = biddingDocumentParser.score_analysis(file_path)
-    print(score_analysis_result)
+    # score_analysis_result = biddingDocumentParser.score_analysis(file_path)
+    # print(score_analysis_result)
