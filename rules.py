@@ -1,5 +1,7 @@
+import re
+
 from expression import get_expression
-from utils import *
+from utils import is_integer_or_float
 
 
 def rule1(sub_item):

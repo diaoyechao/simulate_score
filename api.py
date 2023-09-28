@@ -1,12 +1,15 @@
 from flask import Flask, jsonify, request
 
 from api_utils import *
+from bidding_document_parse import BiddingDocumentParser
 
 app = Flask(__name__)
 
+biddingDocumentParser = BiddingDocumentParser()
+
 
 # 定义一个路由，指定请求方法为POST
-@app.route("/api/v1/simulation/score/simulationScoreAnalysis", methods=["POST"])
+@app.route("/api/v1/simulationScoreAnalysis", methods=["POST"])
 def score_analysis_api():
     if request.is_json:
         try:
@@ -14,7 +17,7 @@ def score_analysis_api():
             url = data["url"]
             save_dir = "download_files/"
             file_path = download_file(save_dir, url)
-            res = score_analysis(file_path)
+            res = biddingDocumentParser.score_analysis(file_path)
             return jsonify(res), 200
         except Exception as _:
             return jsonify({"success": False, "msg": "An error occurred during scoring.", "code": 400, "data": {}}), 400
@@ -32,7 +35,7 @@ def bidding_document_parse_api():
             url = data["url"]
             save_dir = "download_files/"
             file_path = download_file(save_dir, url)
-            bidding_document_parse_result = bidding_document_parse(file_path)
+            bidding_document_parse_result = biddingDocumentParser.bidding_document_parse(file_path)
             bidding_document_parse_result["id"] = id
             response = {"success": True, "msg": "请求成功", "code": 200, "data": bidding_document_parse_result}
             return jsonify(response), 200
